@@ -1218,7 +1218,7 @@ class Featurizer():
         if continuous:
             cstart,_ = self.featurizer_type_idxs["constant_continuous"]
             self._handle_continuous_feature(pfeats, cstart, col, val)
-            ret_feats.append(pfeats)
+            # ret_feats.append(pfeats)
         else:
             if "like" in cmp_op:
                 lstart,_ = self.featurizer_type_idxs["constant_like"]
@@ -1368,14 +1368,12 @@ class Featurizer():
                     allvals = allvals["literal"]
                 cmp_op = aliasinfo["pred_types"][ci]
                 continuous = self.column_stats[col]["continuous"]
-
-                if continuous and col in seencols:
-                    continue
-                seencols.add(col)
+                # seencols.add(col)
                 pfeats = self._handle_single_col(col,allvals,
                         alias_est, subp_est,
                         cmp_op,
                         continuous)
+
                 allpredfeats += pfeats
 
         ## FIXME: need to test this

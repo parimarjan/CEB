@@ -76,6 +76,8 @@ def get_alg(alg):
         return Postgres()
     elif alg == "true":
         return TrueCardinalities()
+    elif alg == "joinkeys":
+        return TrueJoinKeys()
     elif alg == "true_rank":
         return TrueRank()
     elif alg == "true_random":
@@ -302,6 +304,22 @@ def load_qdata(fns):
     qreps = []
     for qfn in fns:
         qrep = load_qrep(qfn)
+
+        if args.algs in ["joinkeys", "postgres"]:
+            skip = False
+            sg = qrep["subset_graph"]
+            for u,v,data in sg.edges(data=True):
+                if "join_key_cardinality" not in data:
+                    # print(data)
+                    # print(qfn)
+                    # print(u, v)
+                    # pdb.set_trace()
+                    skip = True
+                    break
+
+            if skip:
+                continue
+
         # TODO: can do checks like no queries with zero cardinalities etc.
         qreps.append(qrep)
         template_name = os.path.basename(os.path.dirname(qfn))
@@ -444,6 +462,9 @@ def main():
     valqs = load_qdata(val_qfns)
     testqs = load_qdata(test_qfns)
 
+    print("""Selected {} train qdata, {} test qdata, and {} val qdata"""\
+            .format(len(trainqs), len(testqs), len(valqs)))
+
     if args.onehot_dropout == -1:
         # traintabs = set()
         traintabs,traincols,trainconsts,trainjoins,trainsubs,trainjoins2, \
@@ -546,7 +567,7 @@ def read_flags():
     parser.add_argument("--pwd", type=str, required=False,
             default="password")
     parser.add_argument("--port", type=int, required=False,
-            default=5431)
+            default=5432)
 
     parser.add_argument("--result_dir", type=str, required=False,
             default="results")

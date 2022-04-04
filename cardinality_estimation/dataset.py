@@ -167,8 +167,8 @@ def mscn_collate_fn(data):
 
     # print(flows)
     # pdb.set_trace()
-    # flows = to_variable(flows, requires_grad=False).float()
-    flows = torch.stack(flows).float()
+    flows = to_variable(flows, requires_grad=False).float()
+    # flows = torch.stack(flows).float()
 
     ys = to_variable(ys, requires_grad=False).float()
     data = {}
@@ -287,9 +287,10 @@ class QueryDataset(data.Dataset):
 
         self.save_mscn_feats = False
 
-        if self.load_padded_mscn_feats:
-            # print("DEBUG: not saving mscn features")
-            self.save_mscn_feats = True
+        if False:
+            self.save_mscn_feats = False
+            print("DEBUG: not saving mscn feats")
+
             fkeys = list(dir(self.featurizer))
             fkeys.sort()
             attrs = ""
@@ -305,7 +306,6 @@ class QueryDataset(data.Dataset):
 
             make_dir("./mscn_features")
             make_dir(self.featdir)
-
 
         # shorthands
         self.ckey = self.featurizer.ckey
@@ -401,7 +401,7 @@ class QueryDataset(data.Dataset):
                 x["pmask"] = pm
                 x["jmask"] = jm
 
-            x["flow"] = to_variable(x["flow"], requires_grad=False).float()
+                x["flow"] = to_variable(x["flow"], requires_grad=False).float()
 
             X.append(x)
             Y.append(y)

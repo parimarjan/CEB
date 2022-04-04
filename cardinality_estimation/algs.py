@@ -116,6 +116,7 @@ class CardinalityEstimationAlg():
         return self.__class__.__name__
 
     def save_model(self, save_dir="./", suffix_name=""):
+        print("orig save model")
         pass
 
 def format_model_test_output(pred, samples, featurizer):
@@ -142,6 +143,7 @@ def format_model_test_output(pred, samples, featurizer):
 class NN(CardinalityEstimationAlg):
 
     def __init__(self, *args, **kwargs):
+        print("init net")
         self.kwargs = kwargs
         for k, val in kwargs.items():
             self.__setattr__(k, val)
@@ -187,6 +189,15 @@ class NN(CardinalityEstimationAlg):
         self.eval_fn_handles = []
         for efn in self.eval_fns.split(","):
             self.eval_fn_handles.append(get_eval_fn(efn))
+
+    def save_model(self, save_dir="./", suffix_name=""):
+        print("going to save model at: ")
+        save_dir = "./results/" + self.get_exp_name()
+        print(save_dir)
+        make_dir(save_dir)
+        model_fn = "model-{}.ckpt".format(self.epoch)
+        path = os.path.join(save_dir, model_fn)
+        torch.save(self.net.state_dict(), path)
 
     def init_net(self, sample):
         net = self._init_net(sample)
@@ -369,6 +380,7 @@ class NN(CardinalityEstimationAlg):
             self.swa_scheduler = SWALR(self.optimizer, swa_lr=self.opt_lr)
 
         for self.epoch in range(0,self.max_epochs):
+            self.save_model()
 
             if self.epoch % self.eval_epoch == 0 \
                     and self.epoch != 0:
@@ -426,7 +438,15 @@ class NN(CardinalityEstimationAlg):
                     idxs[i,nt] = True
                 pred = pred[idxs]
             else:
-                pred = net(xbatch).squeeze(1)
+                if self.__str__() == "FCNN":
+                    pred = self.net(xbatch).squeeze(1)
+                elif self.__str__() == "MSCN":
+                    pred = self.net(xbatch["table"], xbatch["pred"],
+                            xbatch["join"], xbatch["flow"],
+                            xbatch["tmask"], xbatch["pmask"], xbatch["jmask"]
+                            ).squeeze(1)
+                else:
+                    assert False
 
             allpreds.append(pred)
 
@@ -593,22 +613,6 @@ class NN(CardinalityEstimationAlg):
                 if self.featurizer.table_features:
                     xbatch["table"] = xbatch["table"] * tf_mask
 
-            # elif self.onehot_dropout == 3:
-                # print(xbatch["table"].shape)
-                # num_batches = xbatch["table"].shape[0]
-                # tf_mask = self._get_onehot_mask_per_subplan(
-                        # num_batches, xbatch["table"].shape[1],
-                        # self.featurizer.table_onehot_mask)
-                # jf_mask = self._get_onehot_mask_per_subplan(num_batches,
-                        # xbatch["join"].shape[1],
-                        # self.featurizer.join_onehot_mask)
-                # pf_mask = self._get_onehot_mask_per_subplan(num_batches,
-                        # xbatch["pred"].shape[1],
-                        # self.featurizer.pred_onehot_mask)
-                # print(tf_mask)
-                # print(tf_mask.shape)
-                # pdb.set_trace()
-
             if self.subplan_level_outputs:
                 pred = self.net(xbatch).squeeze(1)
                 idxs = torch.zeros(pred.shape,dtype=torch.bool)
@@ -619,7 +623,15 @@ class NN(CardinalityEstimationAlg):
                     idxs[i,nt] = True
                 pred = pred[idxs]
             else:
-                pred = self.net(xbatch).squeeze(1)
+                if self.__str__() == "FCNN":
+                    pred = self.net(xbatch).squeeze(1)
+                elif self.__str__() == "MSCN":
+                    pred = self.net(xbatch["table"], xbatch["pred"],
+                            xbatch["join"], xbatch["flow"],
+                            xbatch["tmask"], xbatch["pmask"], xbatch["jmask"]
+                            ).squeeze(1)
+                else:
+                    assert False
 
             assert pred.shape == ybatch.shape
 
@@ -627,10 +639,6 @@ class NN(CardinalityEstimationAlg):
                 assert self.load_query_together
                 qstart = 0
                 losses = []
-
-                # print(self.mb_size)
-                # print(len(info))
-                # pdb.set_trace()
 
                 for cur_info in info:
                     if "query_idx" not in cur_info[0]:
@@ -712,8 +720,8 @@ class NN(CardinalityEstimationAlg):
         curloss = round(float(sum(epoch_losses))/len(epoch_losses),6)
         print("Epoch {} took {}, Avg Loss: {}".format(self.epoch,
             round(time.time()-start, 2), curloss))
-        print("Backward avg time: {}, Forward avg time: {}".format(\
-                np.mean(backtimes), np.mean(ftimes)))
+        # print("Backward avg time: {}, Forward avg time: {}".format(\
+                # np.mean(backtimes), np.mean(ftimes)))
 
         if self.use_wandb:
             wandb.log({"TrainLoss": curloss, "epoch":self.epoch})
@@ -755,9 +763,6 @@ class NN(CardinalityEstimationAlg):
 
     def __str__(self):
         return self.__class__.__name__
-
-    def save_model(self, save_dir="./", suffix_name=""):
-        pass
 
 
 class SavedPreds(CardinalityEstimationAlg):
@@ -841,6 +846,119 @@ class TrueCardinalities(CardinalityEstimationAlg):
                 info = sample["subset_graph"].nodes()[alias_key]
                 pred_dict[(alias_key)] = info["cardinality"]["actual"]
             preds.append(pred_dict)
+        return preds
+
+    def get_exp_name(self):
+        return self.__str__()
+
+    def __str__(self):
+        return "True"
+
+class TrueJoinKeys(CardinalityEstimationAlg):
+    def __init__(self):
+        pass
+
+    def test(self, test_samples):
+        assert isinstance(test_samples[0], dict)
+        preds = []
+        for sample in test_samples:
+            sg = sample["subset_graph"]
+            nodes = list(sample["subset_graph"].nodes())
+            nodes.sort(key = len)
+            cards_so_far = {}
+            pred_dict = {}
+            for node in nodes:
+                if len(node) <= 2:
+                    cards_so_far[node] = sg.nodes()[node]["cardinality"]["actual"]
+                    # cards_so_far[node] = sg.nodes()[node]["cardinality"]["expected"]
+                    pred_dict[(node)] = cards_so_far[node]
+                    continue
+
+                # pred_dict[(node)] = sg.nodes()[node]["cardinality"]["expected"]
+                # continue
+
+                # find any incoming edge
+                connedges = list(sg.out_edges(node))
+
+                # FIXME: maybe choose best one?
+                # cure = random.choice(connedges)
+
+                mcard = 0
+                mincard = 1e25
+
+                for e0 in connedges:
+                    newtab = set(e0[0]) - set(e0[1])
+                    newtab = list(newtab)[0]
+
+                    if cards_so_far[(newtab,)] < mincard:
+                        mincard = cards_so_far[(newtab,)]
+                        cure = e0
+
+                    # if cards_so_far[(newtab,)] > mcard:
+                        # mcard = cards_so_far[(newtab,)]
+                        # cure = e0
+
+                    # if sg.nodes()[(newtab,)]["cardinality"]["total"] > mcard:
+                        # mcard = sg.nodes()[(newtab,)]["cardinality"]["total"]
+                        # cure = e0
+
+                jk = sg.edges()[cure]["join_key_cardinality"]
+                r1_join_tab = list(jk.keys())[0]
+
+                r1 = jk[r1_join_tab]["actual"]
+
+                r1_total = cards_so_far[cure[1]]
+
+                # print(r1, r1_total)
+                newtab = set(cure[0]) - set(cure[1])
+                assert len(newtab) == 1
+                r2_alias = tuple(newtab)
+                r2_total = cards_so_far[r2_alias]
+                # how to find r2? ---> find an edge where it is from the first
+                # one
+                # print(r2_total)
+                joinnode = [r1_join_tab, r2_alias[0]]
+                joinnode.sort()
+                joinnode = tuple(joinnode)
+                # print(joinnode in sg.nodes())
+                ## find the distinct key values of r2 to get to this joinnode
+                r2_edges = list(sg.out_edges(joinnode))
+                r2 = None
+                for e in r2_edges:
+                    if e[1] == r2_alias:
+                        r2 = sg.edges()[e]["join_key_cardinality"][r2_alias[0]]["actual"]
+                        break
+
+                # print(r2_total, r2)
+                assert r2 is not None
+                # assert r2 <= r2_total
+                # assert r1 <= r1_total
+                if r1_total < r1:
+                    r1_total = r1
+                if r2_total < r2:
+                    r2_total = r2
+
+                # if r1 > r1_total:
+                    # print(r1, r1_total)
+                    # print(node, r1_alias)
+                    # pdb.set_trace()
+
+                card = (r1_total*r2_total) / max(r1, r2)
+
+                cards_so_far[node] = card
+                pred_dict[(node)] = card
+
+                # print(node, card, sg.nodes()[node]["cardinality"]["actual"])
+
+                # if node == ('ci', 'cn', 'it1', 'it2', 'k', 'mc', 'mi',
+                        # 'mi_idx', 'mk', 'n', 't'):
+                    # print(cure[1], r1, r1_total)
+                    # print(r2_alias, r2, r2_total)
+                    # pdb.set_trace()
+
+            preds.append(pred_dict)
+            # pdb.set_trace()
+
         return preds
 
     def get_exp_name(self):
