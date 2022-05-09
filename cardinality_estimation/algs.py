@@ -863,17 +863,23 @@ class TrueJoinKeys(CardinalityEstimationAlg):
         preds = []
         for sample in test_samples:
             sg = sample["subset_graph"]
+            jg = sample["join_graph"]
+
             nodes = list(sample["subset_graph"].nodes())
             nodes.sort(key = len)
             cards_so_far = {}
             pred_dict = {}
             for node in nodes:
                 if len(node) <= 2:
-                    cards_so_far[node] = sg.nodes()[node]["cardinality"]["actual"]
+                    curcard = sg.nodes()[node]["cardinality"]["actual"]
+                    if curcard == 0:
+                        curcard += 1
+                    cards_so_far[node] = curcard
                     # cards_so_far[node] = sg.nodes()[node]["cardinality"]["expected"]
                     pred_dict[(node)] = cards_so_far[node]
                     continue
 
+                ## debug code
                 # pred_dict[(node)] = sg.nodes()[node]["cardinality"]["expected"]
                 # continue
 
@@ -890,13 +896,38 @@ class TrueJoinKeys(CardinalityEstimationAlg):
                     newtab = set(e0[0]) - set(e0[1])
                     newtab = list(newtab)[0]
 
-                    if cards_so_far[(newtab,)] < mincard:
-                        mincard = cards_so_far[(newtab,)]
-                        cure = e0
+                    ## Stuff if we want to choose edge based on primary key
+                    poss_edges = jg.edges(newtab)
+                    othertabs = list(sg.edges()[e0]["join_key_cardinality"].keys())
+                    othertab = othertabs[0]
 
-                    # if cards_so_far[(newtab,)] > mcard:
-                        # mcard = cards_so_far[(newtab,)]
+                    currentedge = None
+                    for joinedge in poss_edges:
+                        if newtab in joinedge and othertab in joinedge:
+                            currentedge = joinedge
+                            break
+                    assert currentedge is not None
+                    jc = jg.edges()[currentedge]["join_condition"]
+                    jc = jc.replace(" ", "")
+                    # is newtab the primary key?? if so, set it to cure and break
+                    jc = jc.split("=")
+                    isnewtab_primary = newtab + ".id" in jc
+
+                    # if isnewtab_primary:
                         # cure = e0
+                        # break
+
+                    # if cards_so_far[(newtab,)] < mincard:
+                        # mincard = cards_so_far[(newtab,)]
+                        # cure = e0
+
+                    # if sg.nodes()[(newtab,)]["cardinality"]["total"] < mincard:
+                        # mincard = sg.nodes()[(newtab,)]["cardinality"]["total"]
+                        # cure = e0
+
+                    if cards_so_far[(newtab,)] > mcard:
+                        mcard = cards_so_far[(newtab,)]
+                        cure = e0
 
                     # if sg.nodes()[(newtab,)]["cardinality"]["total"] > mcard:
                         # mcard = sg.nodes()[(newtab,)]["cardinality"]["total"]
@@ -933,17 +964,53 @@ class TrueJoinKeys(CardinalityEstimationAlg):
                 assert r2 is not None
                 # assert r2 <= r2_total
                 # assert r1 <= r1_total
-                if r1_total < r1:
-                    r1_total = r1
-                if r2_total < r2:
-                    r2_total = r2
+
+                ## FIXME:
+                # if r1_total < r1:
+                    # print(r1_total, r1)
+                    # print("r1 total < r1!")
+                    # r1_total = r1
+
+                # if r2_total < r2:
+                    # print(r2_total, r2)
+                    # print("r2 total < r2!")
+                    # r2_total = r2
+                    # pdb.set_trace()
 
                 # if r1 > r1_total:
                     # print(r1, r1_total)
                     # print(node, r1_alias)
                     # pdb.set_trace()
 
-                card = (r1_total*r2_total) / max(r1, r2)
+                if r1 == 0:
+                    r1 += 1
+                    # print("r1 = 0")
+                    # print(r1, r1_total)
+                    # print(node, r1_join_tab)
+                    # pdb.set_trace()
+
+                if r2 == 0:
+                    # print("r2 = 0")
+                    r2 += 1
+                    # print(r2, r2_total)
+                    # print(node, r2_alias)
+                    # pdb.set_trace()
+
+                # if r1_total == 0 or r2_total == 0:
+                    # print("rtotal = 0")
+                    # print(r1_total, r2_total)
+                    # pdb.set_trace()
+
+                ## TODO: effect of this?
+                # if r1 == 0 or r2 == 0 or r1_total == 0 or r2_total == 0:
+                    # card = 1
+                # else:
+                    # # card = (r1_total*r2_total) / max(r1, r2)
+                    # card = min(r1,r2)*(r1_total/r1)*(r2_total/r2)
+
+                card = min(r1,r2)*(r1_total/r1)*(r2_total/r2)
+                if card == 0:
+                    card += 1
 
                 cards_so_far[node] = card
                 pred_dict[(node)] = card

@@ -1,7 +1,7 @@
 import sqlparse
 from sqlparse.sql import IdentifierList, Identifier
 from sqlparse.tokens import Keyword, DML
-from moz_sql_parser import parse
+#from moz_sql_parser import parse
 import time
 # from networkx.drawing.nx_agraph import graphviz_layout, to_agraph
 # from networkx.algorithms import bipartite

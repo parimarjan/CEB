@@ -1179,6 +1179,7 @@ class Featurizer():
 
     def _update_set_column_features(self, col, pfeats):
         assert col in self.column_stats
+        print(self.set_column_feature)
         use_onehot = "onehot" in self.set_column_feature
         use_stats = "stats" in self.set_column_feature
 
@@ -1186,6 +1187,8 @@ class Featurizer():
             feat_start,_ = self.featurizer_type_idxs["col_onehot"]
             # which column does the current feature belong to
             cidx = self.columns_onehot_idx[col]
+            print(col, ", idx: ", cidx)
+            print("Going to update idx: ", feat_start + cidx)
             pfeats[feat_start + cidx] = 1.0
 
         if use_stats:
