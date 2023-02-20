@@ -563,6 +563,28 @@ class NN(CardinalityEstimationAlg):
             eplosses = []
             pct_chngs = []
 
+        # fkeys = list(dir(self.featurizer))
+        # fkeys.sort()
+        # attrs = ""
+        # for k in fkeys:
+            # attrvals = getattr(self.featurizer, k)
+            # if not hasattr(attrvals, "__len__") and \
+                # "method" not in str(attrvals):
+                # attr = str(k) + str(attrvals) + ";"
+                # print(attr)
+
+        # fkeys = list(dir(self))
+        # fkeys.sort()
+        # attrs = ""
+        # for k in fkeys:
+            # attrvals = getattr(self, k)
+            # if not hasattr(attrvals, "__len__") and \
+                # "method" not in str(attrvals):
+                # attr = str(k) + str(attrvals) + ";"
+                # print(attr)
+
+        # pdb.set_trace()
+
         for self.epoch in range(0,total_epochs):
 
             # if self.epoch % self.eval_epoch == 0 \

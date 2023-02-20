@@ -506,8 +506,6 @@ def update_job_parsing(qrep):
         if data["cardinality"]["actual"] == 0:
             data["cardinality"]["actual"] = 1
 
-    # pdb.set_trace()
-
 def load_qdata(fns):
     qreps = []
     for qfn in fns:
@@ -538,10 +536,10 @@ def load_qdata(fns):
                 skip = True
                 break
 
-            if qrep["subset_graph"].nodes()[node]["cardinality"]["actual"] \
-                    >= TIMEOUT_CARD:
-                skip = True
-                break
+            # if qrep["subset_graph"].nodes()[node]["cardinality"]["actual"] \
+                    # >= TIMEOUT_CARD:
+                # skip = True
+                # break
 
             if qrep["subset_graph"].nodes()[node]["cardinality"]["actual"] \
                     < 1:
@@ -894,13 +892,13 @@ def read_flags():
     parser.add_argument("--db_host", type=str, required=False,
             default="localhost")
     parser.add_argument("--user", type=str, required=False,
-            default="ceb")
+            default="pari")
     # parser.add_argument("--user", type=str, required=False,
             # default="pari")
     parser.add_argument("--pwd", type=str, required=False,
-            default="password")
+            default="")
     parser.add_argument("--port", type=int, required=False,
-            default=5432)
+            default=5440)
 
     parser.add_argument("--result_dir", type=str, required=False,
             default="./results")
@@ -982,7 +980,7 @@ def read_flags():
     parser.add_argument("--save_featstats", type=int, required=False,
             default=0)
     parser.add_argument("--use_saved_feats", type=int, required=False,
-            default=1)
+            default=0)
 
     parser.add_argument("--heuristic_features", type=int, required=False,
             default=1)
@@ -1079,9 +1077,9 @@ def read_flags():
             default=1000)
 
     parser.add_argument("--max_discrete_featurizing_buckets", type=int, required=False,
-            default=10)
+            default=1)
     parser.add_argument("--max_like_featurizing_buckets", type=int, required=False,
-            default=10)
+            default=1)
 
     parser.add_argument("--embedding_fn", type=str, required=False, default=None)
     parser.add_argument("--embedding_pooling", type=str, required=False, default=None)

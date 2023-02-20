@@ -1211,6 +1211,10 @@ class Featurizer():
 
             self.join_features_len += joinstats_len
 
+        # print(self.joins)
+        # print(self.join_features_len)
+        # pdb.set_trace()
+
         self.join_onehot_mask = np.ones(self.join_features_len)
         if "join_onehot" in self.featurizer_type_idxs:
             a,b = self.featurizer_type_idxs["join_onehot"]

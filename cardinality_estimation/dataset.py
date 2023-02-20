@@ -274,11 +274,11 @@ class QueryDataset(data.Dataset):
             self.featdir = "./mscn_features/" + str(self.feathash)
             if os.path.exists(self.featdir):
                 print("features saved before")
-                if not self.featurizer.use_saved_feats:
-                    print("going to delete feature directory, and save again")
-                    # delete these and save again
-                    self.save_mscn_feats = True
-                    os.remove(self.featdir)
+                # if not self.featurizer.use_saved_feats:
+                    # print("going to delete feature directory, and save again")
+                    # # delete these and save again
+                    # self.save_mscn_feats = True
+                    # os.remove(self.featdir)
             else:
                 print("features NOT saved before")
 
